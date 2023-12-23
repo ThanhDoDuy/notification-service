@@ -5,6 +5,8 @@ import { config } from '@notifications/config';
 import { winstonLogger } from '../logger';
 
 import { createConnection } from './connection';
+import { IEmailLocals } from '@notifications/interfaces/email.interface';
+import { sendEmail } from './mail.transport';
 
 const log: Logger = winstonLogger(`${config.ELASTIC_SEARCH_URL}`, 'notifications', 'debug');
 
@@ -22,18 +24,55 @@ async function consumeAuthEmailMessage(channel: Channel): Promise<void> {
         await channel.assertExchange(exchangeName, 'direct');
         const serviceQueue = await channel.assertQueue(queueName, { durable: true });
         await channel.bindQueue(serviceQueue.queue, exchangeName, routingKey);
-        channel.consume(serviceQueue.queue, async (_msg: ConsumeMessage | null) => {
+        channel.consume(serviceQueue.queue, async (msg: ConsumeMessage | null) => {
             // The message should be a string format
-            // console.log(JSON.parse(msg!.content.toString()));
-            // // send emails to user for confirmation
-            // // acknowledge
-            // channel.ack(msg!);
+            console.log(JSON.parse(msg!.content.toString()))
+            const { receiverEmail, username, verifyLink, resetLink, template } =
+                JSON.parse(msg!.content.toString());
+            // send emails to user for confirmation
+            const locals: IEmailLocals = {
+                appLink: `${config.CLIENT_URL}`,
+                appIcon: 'https://ibb.co/pK37wZF',
+                username,
+                verifyLink,
+                resetLink
+            };
+            await sendEmail(template, receiverEmail, locals);
+            // acknowledge
+            channel.ack(msg!);
         });
     } catch (error) {
         log.log('error', 'NotificationServer consumeAuthEmailMessage() method error: ', error);
     }
 }
 
+async function consumeOrderEmailMessage(channel: Channel): Promise<void> {
+    try {
+        if(!channel) {
+            channel = await createConnection() as Channel;
+        }
+        // Setup exchange mechanism
+        const exchangeName = 'order-notification';
+        const routingKey = 'order-email';
+        // Setup queue
+        const queueName = 'order-email-queue';
+        // Exchanges receive messages from producers and then route them to queues based on certain rules defined by the exchange type and routing key.
+        await channel.assertExchange(exchangeName, 'direct');
+        const serviceQueue = await channel.assertQueue(queueName, { durable: true });
+        await channel.bindQueue(serviceQueue.queue, exchangeName, routingKey);
+        channel.consume(serviceQueue.queue, async (msg: ConsumeMessage | null) => {
+            // The message should be a string format
+            console.log(JSON.parse(msg!.content.toString()));
+            // send emails to user for confirmation
+            // acknowledge
+            channel.ack(msg!);
+        });
+    } catch (error) {
+        log.log('error', 'NotificationServer consumeOrderEmailMessage() method error: ', error);
+    }
+}
+
 export {
-    consumeAuthEmailMessage
+    consumeAuthEmailMessage,
+    consumeOrderEmailMessage
 };

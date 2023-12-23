@@ -10,7 +10,7 @@ import { winstonLogger } from './logger';
 import { healthRoutes } from './routes';
 import { checkConnectionELS } from './elasticsearch';
 import { createConnection } from './queues/connection';
-import { consumeAuthEmailMessage } from './queues/email.consumer';
+import { consumeAuthEmailMessage, consumeOrderEmailMessage } from './queues/email.consumer';
 
 const SERVER_PORT = 4001;
 const log: Logger = winstonLogger(`${config.ELASTIC_SEARCH_URL}`,
@@ -26,12 +26,18 @@ function start(app: Application): void {
 async function startQueues(): Promise<void> {
     const emailChannel: Channel = await createConnection() as Channel;
     await consumeAuthEmailMessage(emailChannel);
-    const message: string = JSON.stringify({
-        name: 'ddthanh',
-        service: 'notification service',
+    await consumeOrderEmailMessage(emailChannel);
+    // const message: string = JSON.stringify({
+    //     name: 'ddthanh',
+    //     service: 'notification service',
+    // });
+    const verificationLink = `${config.CLIENT_URL}/confirm_email?v_token=123456hahahaha`;
+    const messageDetails: string = JSON.stringify({
+        receiverEmail: `${config.SENDER_EMAIL}`,
+        verifyLink: verificationLink,
+        template: 'verifyEmail'
     });
-    console.log(message)
-    emailChannel.publish('email-notification', 'auth-email', Buffer.from(message));
+    emailChannel.publish('email-notification', 'auth-email', Buffer.from(messageDetails));
 }
 
 function startElasticSearch(): void {

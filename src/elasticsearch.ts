@@ -14,7 +14,7 @@ const elasticSearchClient = new Client({
 export async function checkConnectionELS(): Promise<void> {
     let isConnected = false;
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = 1;
 
     while (!isConnected && attempts < maxAttempts) {
         try {
