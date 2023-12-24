@@ -32,7 +32,7 @@ async function consumeAuthEmailMessage(channel: Channel): Promise<void> {
             // send emails to user for confirmation
             const locals: IEmailLocals = {
                 appLink: `${config.CLIENT_URL}`,
-                appIcon: 'https://ibb.co/pK37wZF',
+                appIcon: 'https://i.ibb.co/Kyp2m0t/cover.png',
                 username,
                 verifyLink,
                 resetLink
@@ -61,10 +61,64 @@ async function consumeOrderEmailMessage(channel: Channel): Promise<void> {
         const serviceQueue = await channel.assertQueue(queueName, { durable: true });
         await channel.bindQueue(serviceQueue.queue, exchangeName, routingKey);
         channel.consume(serviceQueue.queue, async (msg: ConsumeMessage | null) => {
-            // The message should be a string format
-            console.log(JSON.parse(msg!.content.toString()));
-            // send emails to user for confirmation
-            // acknowledge
+            const {
+                receiverEmail,
+                username,
+                template,
+                sender,
+                offerLink,
+                amount,
+                buyerUsername,
+                sellerUsername,
+                title,
+                description,
+                deliveryDays,
+                orderId,
+                orderDue,
+                requirements,
+                orderUrl,
+                originalDate,
+                newDate,
+                reason,
+                subject,
+                header,
+                type,
+                message,
+                serviceFee,
+                total
+            } = JSON.parse(msg!.content.toString());
+            const locals: IEmailLocals = {
+                appLink: `${config.CLIENT_URL}`,
+                appIcon: 'https://i.ibb.co/Kyp2m0t/cover.png',
+                username,
+                sender,
+                offerLink,
+                amount,
+                buyerUsername,
+                sellerUsername,
+                title,
+                description,
+                deliveryDays,
+                orderId,
+                orderDue,
+                requirements,
+                orderUrl,
+                originalDate,
+                newDate,
+                reason,
+                subject,
+                header,
+                type,
+                message,
+                serviceFee,
+                total
+            };
+            if (template === 'orderPlaced') {
+                await sendEmail('orderPlaced', receiverEmail, locals);
+                await sendEmail('orderReceipt', receiverEmail, locals);
+            } else {
+                await sendEmail(template, receiverEmail, locals);
+            }
             channel.ack(msg!);
         });
     } catch (error) {
